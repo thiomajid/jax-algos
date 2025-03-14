@@ -30,8 +30,8 @@ def mse_loss(predictions: jax.Array, targets: jax.Array):
     return ((predictions - targets) ** 2).mean()
 
 
-@partial(jax.value_and_grad, argnums=(0, 1))
 @jax.jit
+@partial(jax.value_and_grad, argnums=(0, 1))
 def loss_fn(w, b, x, y):
     predictions = x @ w + b
     return mse_loss(predictions, y)
