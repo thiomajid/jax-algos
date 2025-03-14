@@ -1,7 +1,9 @@
+from functools import partial
+
 import jax
 import matplotlib
 
-matplotlib.use("TkAgg")  # Add this before importing pyplot
+matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -18,6 +20,7 @@ class LinearRegression:
         self.rngs, b_key = jax.random.split(self.rngs)
         self.b = jax.random.normal(b_key, shape=(self.n_outputs,))
 
+    @jax.jit
     def __call__(self, x: jax.Array):
         out = x @ self.w + self.b
         return out
@@ -27,6 +30,8 @@ def mse_loss(predictions: jax.Array, targets: jax.Array):
     return ((predictions - targets) ** 2).mean()
 
 
+@partial(jax.value_and_grad, argnums=(0, 1))
+@jax.jit
 def loss_fn(w, b, x, y):
     predictions = x @ w + b
     return mse_loss(predictions, y)
@@ -42,12 +47,8 @@ def train(
     in_features: int,
     out_features: int,
 ):
-    # Create the model
     model = LinearRegression(rngs=key, n_features=in_features, n_outputs=out_features)
     losses = []
-
-    # Create the value_and_grad function
-    value_grad_fn = jax.value_and_grad(loss_fn, argnums=(0, 1))
 
     with tqdm(total=num_epochs) as pbar:
         for epoch in range(num_epochs):
@@ -64,7 +65,7 @@ def train(
                 y_batch = labels[batch_indices]
 
                 # Compute loss and gradients
-                loss, (dw, db) = value_grad_fn(model.w, model.b, x_batch, y_batch)
+                loss, (dw, db) = loss_fn(model.w, model.b, x_batch, y_batch)
 
                 # Update weights and biases
                 model.w -= lr * dw
@@ -89,8 +90,8 @@ def train(
 
 if __name__ == "__main__":
     key = jax.random.PRNGKey(0)
-    n_features = 5
-    n_outputs = 2
+    n_features = 10
+    n_outputs = 3
 
     # Generate some random data
     num_samples = 1000
@@ -112,7 +113,7 @@ if __name__ == "__main__":
     model, losses = train(
         key=key,
         lr=0.001,
-        num_epochs=10,
+        num_epochs=50,
         batch_size=16,
         targets=x_data,
         labels=y_data,
